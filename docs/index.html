@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>eggNOG-MCP — A Model Context Protocol Server for the eggNOG Database</title>
+  <meta name="description" content="An unofficial MCP server bridging the eggNOG 7 database with AI assistants for comparative genomics and functional annotation." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..600&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ==================== Reset & Base ==================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --c-bg:        #fdfdfc;
+      --c-bg-alt:    #f7f6f3;
+      --c-bg-card:   #ffffff;
+      --c-border:    #e8e6e0;
+      --c-border-2:  #d4d1c8;
+      --c-text:      #2b2b2b;
+      --c-text-2:    #555;
+      --c-text-3:    #888;
+      --c-accent:    #1a4d6e;
+      --c-accent-2:  #2c7ba6;
+      --c-accent-bg: #eef5f9;
+      --c-code-bg:   #f4f2ed;
+      --c-code-text: #4a4a4a;
+      --c-success:    #2e7d32;
+      --c-warn:      #b85c00;
+      --shadow-sm:   0 1px 3px rgba(0,0,0,.05);
+      --shadow-md:   0 4px 16px rgba(0,0,0,.07);
+      --radius:      6px;
+      --max-w:       860px;
+      --font-serif:  'Source Serif 4', Georgia, 'Times New Roman', serif;
+      --font-sans:   'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono:   'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    }
+
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      font-family: var(--font-serif);
+      background: var(--c-bg);
+      color: var(--c-text);
+      line-height: 1.75;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ==================== Utility ==================== */
+    .container { max-width: var(--max-w); margin: 0 auto; padding: 0 24px; }
+
+    /* ==================== Header ==================== */
+    header {
+      background: var(--c-bg-alt);
+      border-bottom: 1px solid var(--c-border);
+      padding: 14px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+    header .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--c-accent);
+      text-decoration: none;
+      letter-spacing: -0.01em;
+    }
+    .logo span { color: var(--c-text-3); font-weight: 400; margin-left: 2px; }
+    nav ul { list-style: none; display: flex; gap: 28px; }
+    nav a {
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+      font-weight: 400;
+      color: var(--c-text-2);
+      text-decoration: none;
+      transition: color .15s;
+    }
+    nav a:hover { color: var(--c-accent); }
+    nav a.external::after {
+      content: "↗";
+      font-size: 0.75em;
+      margin-left: 3px;
+      opacity: .6;
+    }
+
+    /* ==================== Hero ==================== */
+    .hero { padding: 80px 0 56px; text-align: center; }
+    .hero h1 {
+      font-family: var(--font-serif);
+      font-size: 2.65rem;
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: 18px;
+    }
+    .hero h1 .accent { color: var(--c-accent); }
+    .hero .tagline {
+      font-size: 1.18rem;
+      color: var(--c-text-2);
+      font-weight: 300;
+      line-height: 1.6;
+      max-width: 620px;
+      margin: 0 auto 28px;
+    }
+    .hero .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 36px; }
+    .badge {
+      display: inline-block;
+      font-family: var(--font-sans);
+      font-size: 0.76rem;
+      font-weight: 500;
+      padding: 4px 12px;
+      border-radius: 100px;
+      border: 1px solid var(--c-border-2);
+      background: var(--c-bg-card);
+      color: var(--c-text-2);
+    }
+    .badge.blue   { background: #eaf2fa; border-color: #c5dde9; color: #1a4d6e; }
+    .badge.green  { background: #eef7ee; border-color: #c6e0c6; color: #1e5e1e; }
+    .badge.orange { background: #fdf3e8; border-color: #f0dcc2; color: #8a5a1e; }
+    .cta-group { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      font-weight: 500;
+      padding: 10px 26px;
+      border-radius: var(--radius);
+      text-decoration: none;
+      transition: all .15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .btn-primary {
+      background: var(--c-accent);
+      color: #fff;
+      border: 1px solid var(--c-accent);
+    }
+    .btn-primary:hover { background: var(--c-accent-2); border-color: var(--c-accent-2); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--c-text);
+      border: 1px solid var(--c-border-2);
+    }
+    .btn-secondary:hover { background: var(--c-bg-alt); border-color: var(--c-text-3); }
+
+    /* ==================== Sections ==================== */
+    section { padding: 56px 0; border-top: 1px solid var(--c-border); }
+    section h2 {
+      font-family: var(--font-serif);
+      font-size: 1.65rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+    section h2 .num {
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--c-accent-2);
+      margin-right: 10px;
+      vertical-align: super;
+    }
+    section > .container > p.lead {
+      font-size: 1.05rem;
+      color: var(--c-text-2);
+      margin-bottom: 32px;
+      max-width: 660px;
+    }
+
+    /* ==================== Overview ==================== */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 36px;
+    }
+    .stat-card {
+      text-align: center;
+      padding: 28px 16px;
+      background: var(--c-bg-card);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+    }
+    .stat-card .num {
+      font-family: var(--font-sans);
+      font-size: 2.1rem;
+      font-weight: 700;
+      color: var(--c-accent);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .stat-card .label {
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+      color: var(--c-text-2);
+      font-weight: 400;
+    }
+    .overview-text { font-size: 1.02rem; color: var(--c-text); }
+    .overview-text a { color: var(--c-accent); text-decoration: none; border-bottom: 1px solid var(--c-accent-2); }
+    .overview-text a:hover { background: var(--c-accent-bg); }
+    .disclaimer {
+      margin-top: 24px;
+      padding: 16px 20px;
+      background: #fdf8f0;
+      border: 1px solid #f0e2c8;
+      border-radius: var(--radius);
+      font-size: 0.88rem;
+      color: var(--c-text-2);
+      line-height: 1.6;
+    }
+    .disclaimer strong { color: var(--c-warn); }
+
+    /* ==================== Architecture ==================== */
+    .arch-diagram {
+      background: var(--c-bg-card);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius);
+      padding: 40px 32px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+    }
+    .arch-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      flex-wrap: wrap;
+    }
+    .arch-node {
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 14px 22px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--c-border-2);
+      background: var(--c-bg-alt);
+      color: var(--c-text);
+      white-space: nowrap;
+    }
+    .arch-node.accent { background: var(--c-accent); color: #fff; border-color: var(--c-accent); }
+    .arch-node.data   { background: #fdf3e8; border-color: #f0dcc2; color: #8a5a1e; }
+    .arch-arrow {
+      font-size: 1.2rem;
+      color: var(--c-text-3);
+      padding: 0 12px;
+      font-family: var(--font-sans);
+    }
+    .arch-labels {
+      display: flex;
+      justify-content: space-between;
+      max-width: 520px;
+      margin: 14px auto 0;
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      color: var(--c-text-3);
+    }
+
+    /* ==================== Tools ==================== */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .tool-card {
+      background: var(--c-bg-card);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      transition: box-shadow .15s, border-color .15s;
+    }
+    .tool-card:hover { box-shadow: var(--shadow-md); border-color: var(--c-border-2); }
+    .tool-card .tool-name {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--c-accent);
+      margin-bottom: 6px;
+    }
+    .tool-card .tool-desc {
+      font-size: 0.92rem;
+      color: var(--c-text-2);
+      line-height: 1.6;
+    }
+    .tool-card .tool-icon {
+      font-size: 1.15rem;
+      float: left;
+      margin-right: 10px;
+      line-height: 1;
+      margin-top: 2px;
+    }
+
+    /* ==================== Features ==================== */
+    .feature-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0;
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--c-bg-card);
+    }
+    .feature-item {
+      padding: 18px 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      border-bottom: 1px solid var(--c-border);
+      border-right: 1px solid var(--c-border);
+    }
+    .feature-item:nth-child(2n) { border-right: none; }
+    .feature-item:nth-last-child(-n+2) { border-bottom: none; }
+    .feature-item .check {
+      color: var(--c-accent-2);
+      flex-shrink: 0;
+      margin-top: 3px;
+      font-size: 0.9rem;
+    }
+    .feature-item .ftext {
+      font-size: 0.92rem;
+      color: var(--c-text);
+      line-height: 1.5;
+    }
+    .feature-item .ftext strong { font-weight: 600; }
+
+    /* ==================== Quick Start ==================== */
+    .code-block {
+      background: var(--c-code-bg);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: var(--c-code-text);
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+    .code-block .comment { color: #997040; }
+    .code-block .prompt  { color: var(--c-text-3); user-select: none; }
+    .code-block .output   { color: var(--c-text-3); }
+
+    .config-tabs {
+      display: flex;
+      gap: 0;
+      margin-top: 24px;
+      border-bottom: 1px solid var(--c-border);
+    }
+    .config-tab {
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 8px 20px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--c-text-3);
+      border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .config-tab.active { color: var(--c-accent); border-bottom-color: var(--c-accent); }
+    .config-content { display: none; }
+    .config-content.active { display: block; }
+
+    /* ==================== Examples ==================== */
+    .example-card {
+      background: var(--c-bg-card);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius);
+      padding: 0;
+      margin-bottom: 18px;
+      overflow: hidden;
+    }
+    .example-header {
+      padding: 14px 20px;
+      background: var(--c-bg-alt);
+      border-bottom: 1px solid var(--c-border);
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--c-text);
+    }
+    .example-body { padding: 18px 20px; }
+    .example-dialog { font-size: 0.88rem; line-height: 1.65; }
+    .example-dialog .role {
+      font-family: var(--font-sans);
+      font-size: 0.76rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--c-text-3);
+      margin-right: 8px;
+    }
+    .example-dialog .call {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--c-accent);
+      background: var(--c-accent-bg);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .example-result {
+      margin-top: 12px;
+      padding: 12px 16px;
+      background: #f6f9f6;
+      border: 1px solid #d8e6d8;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      color: var(--c-text-2);
+      line-height: 1.6;
+    }
+    .example-result .item { display: flex; gap: 8px; margin-bottom: 3px; }
+    .example-result .item .key { color: var(--c-success); font-weight: 600; min-width: 90px; }
+    .example-result .item .val { color: var(--c-text); }
+
+    /* ==================== Resources ==================== */
+    .resource-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      margin-top: 8px;
+    }
+    .resource-table th, .resource-table td {
+      text-align: left;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--c-border);
+    }
+    .resource-table th {
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--c-text-3);
+      background: var(--c-bg-alt);
+    }
+    .resource-table td:first-child {
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      color: var(--c-accent);
+      white-space: nowrap;
+    }
+    .resource-table tr:last-child td { border-bottom: none; }
+
+    /* ==================== Footer ==================== */
+    footer {
+      background: var(--c-bg-alt);
+      border-top: 1px solid var(--c-border);
+      padding: 40px 0;
+      text-align: center;
+    }
+    footer .container { max-width: var(--max-w); }
+    footer p { font-family: var(--font-sans); font-size: 0.82rem; color: var(--c-text-3); line-height: 1.7; }
+    footer .refs {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--c-border);
+      font-size: 0.78rem;
+      color: var(--c-text-3);
+      line-height: 1.8;
+    }
+    footer .refs em { font-style: italic; }
+    footer a { color: var(--c-accent-2); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ==================== Responsive ==================== */
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 2rem; }
+      .hero .tagline { font-size: 1.02rem; }
+      .overview-grid { grid-template-columns: 1fr; gap: 14px; }
+      .tools-grid { grid-template-columns: 1fr; }
+      .feature-list { grid-template-columns: 1fr; }
+      .feature-item { border-right: none; }
+      .feature-item:nth-last-child(2) { border-bottom: 1px solid var(--c-border); }
+      .arch-flow { flex-direction: column; gap: 8px; }
+      .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+      .arch-labels { flex-direction: column; gap: 4px; text-align: center; }
+      nav ul { gap: 16px; }
+      nav a { font-size: 0.76rem; }
+      section { padding: 40px 0; }
+      section h2 { font-size: 1.4rem; }
+    }
+    @media (max-width: 480px) {
+      nav ul { display: none; }
+      .hero { padding: 50px 0 36px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================ HEADER ============================ -->
+<header>
+  <div class="container">
+    <a href="#top" class="logo">eggNOG<span>-MCP</span></a>
+    <nav>
+      <ul>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#tools">Tools</a></li>
+        <li><a href="#quickstart">Quick Start</a></li>
+        <li><a href="#examples">Examples</a></li>
+        <li><a href="https://github.com/ZengZichao/eggNOG-MCP" class="external" target="_blank" rel="noopener">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<!-- ============================ HERO ============================ -->
+<section id="top" style="border-top: none; padding: 0;">
+  <div class="container">
+    <div class="hero">
+      <h1>eggNOG-<span class="accent">MCP</span></h1>
+      <p class="tagline">
+        A Model Context Protocol server bridging the <strong>eggNOG 7</strong> database
+        with AI assistants — enabling natural-language access to orthology assignments
+        and functional annotations for comparative genomics.
+      </p>
+      <div class="badges">
+        <span class="badge blue">v0.1.0</span>
+        <span class="badge green">MIT License</span>
+        <span class="badge orange">eggNOG 7</span>
+        <span class="badge">Python ≥ 3.10</span>
+      </div>
+      <div class="cta-group">
+        <a href="#quickstart" class="btn btn-primary">Quick Start →</a>
+        <a href="https://github.com/ZengZichao/eggNOG-MCP" class="btn btn-secondary" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ OVERVIEW ============================ -->
+<section id="overview">
+  <div class="container">
+    <h2><span class="num">01</span>Overview</h2>
+    <p class="lead">
+      <a href="https://eggnogdb.org/" target="_blank" rel="noopener">eggNOG</a> (evolutionary genealogy of genes: Non-supervised Orthologous Groups)
+      is a database of orthology relationships, functional annotations, and phylogenetic trees.
+      eggNOG-MCP implements the <a href="https://modelcontextprotocol.io/" target="_blank" rel="noopener">Model Context Protocol</a>
+      to expose this database to any MCP-compatible AI assistant.
+    </p>
+
+    <div class="overview-grid">
+      <div class="stat-card">
+        <div class="num">12,000+</div>
+        <div class="label">Annotated Species</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">59M+</div>
+        <div class="label">Protein Sequences</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">3.1M+</div>
+        <div class="label">Orthologous Groups</div>
+      </div>
+    </div>
+
+    <p class="overview-text">
+      The server communicates with eggNOG's native JSON API (<code>/e7api/</code>) for reliable, structured
+      data access — no HTML scraping required. Once configured, AI assistants such as Claude Desktop,
+      Cursor, or custom agents can query eggNOG directly through natural language.
+    </p>
+
+    <div class="disclaimer">
+      <strong>⚠️ Disclaimer:</strong> This is a <em>community-maintained, unofficial</em> MCP server.
+      It is not affiliated with, endorsed by, or maintained by the eggNOG team or EMBL.
+      The official eggNOG database is available at
+      <a href="https://eggnogdb.org/" target="_blank" rel="noopener">eggnogdb.org</a>.
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ARCHITECTURE ============================ -->
+<section id="architecture">
+  <div class="container">
+    <h2><span class="num">02</span>Architecture</h2>
+    <p class="lead">A lightweight protocol bridge connecting three layers without additional infrastructure.</p>
+
+    <div class="arch-diagram">
+      <div class="arch-flow">
+        <div class="arch-node">AI Assistant<br><small style="opacity:.7;font-size:.76rem;font-weight:400">Claude / Cursor</small></div>
+        <span class="arch-arrow">⟷</span>
+        <div class="arch-node accent">eggNOG-MCP<br><small style="opacity:.8;font-size:.76rem;font-weight:400">10 Tools · 3 Resources</small></div>
+        <span class="arch-arrow">⟷</span>
+        <div class="arch-node data">eggNOG 7 API<br><small style="opacity:.7;font-size:.76rem;font-weight:400">/e7api/ JSON</small></div>
+      </div>
+      <div class="arch-labels">
+        <span>MCP Protocol (stdio)</span>
+        <span>Async HTTP (httpx)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ TOOLS ============================ -->
+<section id="tools">
+  <div class="container">
+    <h2><span class="num">03</span>Available Tools</h2>
+    <p class="lead">Ten MCP tools provide comprehensive access to the eggNOG database, from protein lookups to functional annotation.</p>
+
+    <div class="tools-grid">
+      <div class="tool-card">
+        <div class="tool-name">get_protein</div>
+        <div class="tool-desc">Retrieve protein family, predicted functions, and orthologous groups for any eggNOG protein ID.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">get_orthologous_group</div>
+        <div class="tool-desc">Look up OG details: evolutionary origin, member counts, functional annotation, and family OG list.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">get_og_content</div>
+        <div class="tool-desc">List all proteins within an OG, grouped by species, with configurable result limits.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">get_orthologs</div>
+        <div class="tool-desc">Retrieve pairwise orthologs for a protein across all available species.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">search_eggnog</div>
+        <div class="tool-desc">Search by protein name, UniProt ID, or family name with autocomplete support.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">annotate_protein</div>
+        <div class="tool-desc">Get structured KEGG KO and GO term annotations with confidence scores.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">get_protein_family</div>
+        <div class="tool-desc">Browse all species and proteins within a protein family cluster.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">get_database_stats</div>
+        <div class="tool-desc">Access current eggNOG 7 release statistics — species, proteins, trees, and OG counts.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">list_downloads</div>
+        <div class="tool-desc">List all bulk-downloadable data files with URLs and descriptions.</div>
+      </div>
+      <div class="tool-card">
+        <div class="tool-name">get_taxid_info</div>
+        <div class="tool-desc">Look up taxonomic information by NCBI taxonomy ID.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FEATURES ============================ -->
+<section id="features">
+  <div class="container">
+    <h2><span class="num">04</span>Key Features</h2>
+    <p class="lead">Designed for reliability and ease of integration in bioinformatics workflows.</p>
+
+    <div class="feature-list">
+      <div class="feature-item">
+        <span class="check">✓</span>
+        <span class="ftext"><strong>Native JSON API</strong> — Uses eggNOG's <code>/e7api/</code> endpoints for structured data access, no HTML scraping.</span>
+      </div>
+      <div class="feature-item">
+        <span class="check">✓</span>
+        <span class="ftext"><strong>Async HTTP</strong> — Built on <code>httpx</code> for efficient non-blocking network requests.</span>
+      </div>
+      <div class="feature-item">
+        <span class="check">✓</span>
+        <span class="ftext"><strong>Functional Annotation</strong> — KEGG KO and GO terms returned with confidence scores.</span>
+      </div>
+      <div class="feature-item">
+        <span class="check">✓</span>
+        <span class="ftext"><strong>MCP Resources</strong> — Version info, database stats, and downloads exposed as MCP resources.</span>
+      </div>
+      <div class="feature-item">
+        <span class="check">✓</span>
+        <span class="ftext"><strong>Error Resilient</strong> — All tools return structured error messages instead of crashing.</span>
+      </div>
+      <div class="feature-item">
+        <span class="check">✓</span>
+        <span class="ftext"><strong>Cross-Platform</strong> — Works with Claude Desktop, Cursor IDE, or any MCP-compatible client.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUICK START ============================ -->
+<section id="quickstart">
+  <div class="container">
+    <h2><span class="num">05</span>Quick Start</h2>
+    <p class="lead">Install and run in two commands. Then configure your AI assistant to use it.</p>
+
+    <div class="code-block"><span class="prompt">$ </span>pip install eggnog-mcp
+<span class="prompt">$ </span>eggnog-mcp</div>
+
+    <p style="margin-top:24px;font-size:0.95rem;color:var(--c-text-2);">
+      Or install from source for development:
+    </p>
+    <div class="code-block"><span class="prompt">$ </span>git clone https://github.com/ZengZichao/eggNOG-MCP.git
+<span class="prompt">$ </span><span class="comment">cd eggNOG-MCP</span>
+<span class="prompt">$ </span>pip install -e <span class="comment">".[dev]"</span></div>
+
+    <h3 style="font-family:var(--font-sans);font-size:1rem;font-weight:600;margin-top:32px;margin-bottom:4px;">Configuration</h3>
+    <p style="font-size:0.92rem;color:var(--c-text-2);margin-bottom:16px;">
+      Add the server to your MCP client configuration:
+    </p>
+
+    <div class="config-tabs">
+      <button class="config-tab active" onclick="switchTab(event,'tab-claude')">Claude Desktop</button>
+      <button class="config-tab" onclick="switchTab(event,'tab-cursor')">Cursor IDE</button>
+      <button class="config-tab" onclick="switchTab(event,'tab-python')">From Source</button>
+    </div>
+
+    <div id="tab-claude" class="config-content active">
+      <div class="code-block">{
+  <span style="color:#997040;">"mcpServers"</span>: {
+    <span style="color:#997040;">"eggnog-mcp"</span>: {
+      <span style="color:#997040;">"command"</span>: <span style="color:#2e7d32;">"eggnog-mcp"</span>,
+      <span style="color:#997040;">"args"</span>: []
+    }
+  }
+}</div>
+    </div>
+
+    <div id="tab-cursor" class="config-content">
+      <div class="code-block">{
+  <span style="color:#997040;">"mcpServers"</span>: {
+    <span style="color:#997040;">"eggnog-mcp"</span>: {
+      <span style="color:#997040;">"command"</span>: <span style="color:#2e7d32;">"eggnog-mcp"</span>
+    }
+  }
+}</div>
+    </div>
+
+    <div id="tab-python" class="config-content">
+      <div class="code-block">{
+  <span style="color:#997040;">"mcpServers"</span>: {
+    <span style="color:#997040;">"eggnog-mcp"</span>: {
+      <span style="color:#997040;">"command"</span>: <span style="color:#2e7d32;">"python"</span>,
+      <span style="color:#997040;">"args"</span>: [<span style="color:#2e7d32;">"-m"</span>, <span style="color:#2e7d32;">"eggnog_mcp.server"</span>],
+      <span style="color:#997040;">"env"</span>: {
+        <span style="color:#997040;">"PYTHONPATH"</span>: <span style="color:#2e7d32;">"/path/to/eggNOG-MCP/src"</span>
+      }
+    }
+  }
+}</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ EXAMPLES ============================ -->
+<section id="examples">
+  <div class="container">
+    <h2><span class="num">06</span>Usage Examples</h2>
+    <p class="lead">Natural-language queries are translated into structured tool calls by the AI assistant.</p>
+
+    <div class="example-card">
+      <div class="example-header">Annotate Human P53</div>
+      <div class="example-body">
+        <div class="example-dialog">
+          <p><span class="role">User</span>"What is the functional annotation of human P53 in eggNOG?"</p>
+          <p style="margin-top:8px;"><span class="role">Assistant</span><span class="call">annotate_protein(protein_id="9606.ENSP00000269305")</span></p>
+        </div>
+        <div class="example-result">
+          <div class="item"><span class="key">Family</span><span class="val">P53</span></div>
+          <div class="item"><span class="key">KEGG KO</span><span class="val">K04451 (TP53, 11.47%), K10148 (TP73, 14.34%), K10149 (TP63, 19.80%)</span></div>
+          <div class="item"><span class="key">GO terms</span><span class="val">GO:0006355 (regulation of transcription, 68.83%)</span></div>
+          <div class="item"><span class="key">Pfam</span><span class="val">P53_TAD, TAD2, P53, P53_tetramer</span></div>
+          <div class="item"><span class="key">OGs</span><span class="val">35 orthologous groups spanning 438 species</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="example-card">
+      <div class="example-header">Search the Database</div>
+      <div class="example-body">
+        <div class="example-dialog">
+          <p><span class="role">User</span>"Search eggNOG for P53"</p>
+          <p style="margin-top:8px;"><span class="role">Assistant</span><span class="call">search_eggnog(query="P53")</span></p>
+        </div>
+        <div class="example-result">
+          10 matches including proteins (e.g. <code>PPP5_HUMAN</code>) and OGs (e.g. <code>P53@33154|A-1</code>).
+        </div>
+      </div>
+    </div>
+
+    <div class="example-card">
+      <div class="example-header">Query an Orthologous Group</div>
+      <div class="example-body">
+        <div class="example-dialog">
+          <p><span class="role">User</span>"Tell me about the P53 orthologous group at the Opisthokonta level"</p>
+          <p style="margin-top:8px;"><span class="role">Assistant</span><span class="call">get_orthologous_group(og_id="P53@33154|A-1")</span></p>
+        </div>
+        <div class="example-result">
+          Evolutionary origin: <strong>Opisthokonta</strong> · 1,081 proteins · 438 species · KEGG KO and GO annotations.
+        </div>
+      </div>
+    </div>
+
+    <div class="example-card">
+      <div class="example-header">Database Statistics</div>
+      <div class="example-body">
+        <div class="example-dialog">
+          <p><span class="role">User</span>"How many species are in eggNOG?"</p>
+          <p style="margin-top:8px;"><span class="role">Assistant</span><span class="call">get_database_stats()</span></p>
+        </div>
+        <div class="example-result">
+          <div class="item"><span class="key">Species</span><span class="val">12,000+</span></div>
+          <div class="item"><span class="key">Proteins</span><span class="val">59,000,000+</span></div>
+          <div class="item"><span class="key">Trees</span><span class="val">1,100,000+</span></div>
+          <div class="item"><span class="key">OGs</span><span class="val">3,100,000+</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ RESOURCES ============================ -->
+<section id="resources">
+  <div class="container">
+    <h2><span class="num">07</span>MCP Resources</h2>
+    <p class="lead">In addition to tools, the server exposes three read-only resources accessible via MCP resource URIs.</p>
+
+    <table class="resource-table">
+      <thead>
+        <tr>
+          <th>Resource URI</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>eggnog://version</td>
+          <td>Server version and database information</td>
+        </tr>
+        <tr>
+          <td>eggnog://database/stats</td>
+          <td>Cached database statistics from eggNOG 7</td>
+        </tr>
+        <tr>
+          <td>eggnog://database/downloads</td>
+          <td>List of all downloadable bulk data files</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ FOOTER ============================ -->
+<footer>
+  <div class="container">
+    <p>
+      eggNOG-MCP · <a href="https://github.com/ZengZichao/eggNOG-MCP" target="_blank" rel="noopener">GitHub Repository</a> ·
+      MIT License · Built for the bioinformatics and AI communities
+    </p>
+    <div class="refs">
+      <p>
+        Huerta-Cepas, J., et al. (2023). eggNOG 7.0: comparative genomics at the scale of 12,000+ genomes.
+        <em>Briefings in Bioinformatics</em>, 24(1), bbac483.
+      </p>
+      <p style="margin-top:6px;">
+        Model Context Protocol specification: <a href="https://modelcontextprotocol.io/" target="_blank" rel="noopener">modelcontextprotocol.io</a>
+        · eggNOG database: <a href="https://eggnogdb.org/" target="_blank" rel="noopener">eggnogdb.org</a>
+      </p>
+    </div>
+  </div>
+</footer>
+
+<!-- ============================ SCRIPT ============================ -->
+<script>
+  function switchTab(evt, tabId) {
+    document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.config-content').forEach(c => c.classList.remove('active'));
+    evt.currentTarget.classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+  }
+</script>
+
+</body>
+</html>
